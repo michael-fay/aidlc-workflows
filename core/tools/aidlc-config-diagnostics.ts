@@ -1060,6 +1060,17 @@ function writeJson(path: string, value: unknown): void {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+// The Bedrock model-id mapping Claude Code needs when it routes through
+// Bedrock. Written by writeClaudeProvider on an amazon-bedrock answer; absent
+// from the shipped template so a non-Bedrock install inherits the harness's own
+// model resolution instead of four pinned global.* ids it cannot reach.
+const BEDROCK_MODEL_ALIASES: Record<string, string> = {
+  ANTHROPIC_DEFAULT_FABLE_MODEL: "global.anthropic.claude-fable-5[1m]",
+  ANTHROPIC_DEFAULT_OPUS_MODEL: "global.anthropic.claude-opus-4-8[1m]",
+  ANTHROPIC_DEFAULT_SONNET_MODEL: "global.anthropic.claude-sonnet-4-6[1m]",
+  ANTHROPIC_DEFAULT_HAIKU_MODEL: "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+};
+
 function writeClaudeProvider(
   projectionRoot: string,
   harnessDir: string,
@@ -1068,9 +1079,19 @@ function writeClaudeProvider(
   const settingsPath = join(projectionRoot, harnessDir, "settings.json");
   const settings = JSON.parse(readFileSync(settingsPath, "utf-8")) as Record<string, unknown>;
   const env = isRecord(settings.env) ? { ...settings.env } : {};
+  // Bedrock is OPT-IN: the shipped template carries no provider env at all, so
+  // an install that never answers "amazon-bedrock" runs on the harness's own
+  // model access. Everything Bedrock needs is written HERE, by the answer that
+  // asked for it, rather than shipped enabled and left for a later answer to
+  // undo — the undo never ran (applyConfigDiagnosticRecords returns early for
+  // every non-Bedrock provider), so a template default could not be turned off.
+  env.CLAUDE_CODE_USE_BEDROCK = "1";
   env.AWS_REGION = record.region;
   if (record.profile) env.AWS_PROFILE = record.profile;
   else delete env.AWS_PROFILE;
+  for (const [alias, modelId] of Object.entries(BEDROCK_MODEL_ALIASES)) {
+    env[alias] = modelId;
+  }
   settings.env = env;
   writeJson(settingsPath, settings);
 

@@ -922,8 +922,16 @@ describe("t294 config diagnostics CLI", () => {
       "--yes",
     ], project, env);
     expect(reset.status, reset.stdout + reset.stderr).toBe(0);
-    expect(readFileSync(join(project, ".claude", "settings.json"), "utf-8"))
-      .toContain('"AWS_REGION": "us-east-1"');
+    // Reset restages the provider-neutral template, so Bedrock is GONE rather
+    // than reverted to a shipped region. Before the template dropped its
+    // provider env this asserted a fallback to "us-east-1", which meant a reset
+    // still left Claude Code routed at Bedrock in a region nobody chose.
+    {
+      const afterReset = readFileSync(join(project, ".claude", "settings.json"), "utf-8");
+      expect(afterReset).not.toContain('"AWS_REGION"');
+      expect(afterReset).not.toContain('"CLAUDE_CODE_USE_BEDROCK"');
+      expect(afterReset).not.toContain('"ANTHROPIC_DEFAULT_OPUS_MODEL"');
+    }
     expect(readConfigDiagnosticRecords(join(project, ".claude")).providers)
       .toBeNull();
 

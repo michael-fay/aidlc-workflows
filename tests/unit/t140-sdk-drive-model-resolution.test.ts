@@ -11,7 +11,13 @@ import { join } from "node:path";
 import { resolveDriveSdkSettings } from "../harness/sdk-drive.ts";
 
 const HARNESS_DEFAULT_MODEL = "opus[1m]";
-const SHIPPED_OPUS = "global.anthropic.claude-opus-4-8[1m]";
+// The env precedence assertions ride on a key the template actually ships.
+// They used to ride on ANTHROPIC_DEFAULT_OPUS_MODEL, but the shipped template
+// is provider-neutral now (Bedrock is opt-in, written by writeClaudeProvider on
+// an amazon-bedrock answer), so no model id ships to contest. The scope default
+// is the remaining shipped env key and demonstrates the same ordering.
+const SHIPPED_SCOPE_KEY = "AWS_AIDLC_DEFAULT_SCOPE";
+const SHIPPED_SCOPE = "classic";
 
 function withTempProject(assertions: (projectDir: string) => void): void {
   const projectDir = mkdtempSync(join(tmpdir(), "aidlc-sdk-model-"));
@@ -38,8 +44,11 @@ describe("sdk-drive model resolution", () => {
 
       expect(resolved.model).toBe(HARNESS_DEFAULT_MODEL);
       expect(resolved.modelSource).toBe("harness-default");
-      expect(resolved.env.CLAUDE_CODE_USE_BEDROCK).toBe("1");
-      expect(resolved.env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe(SHIPPED_OPUS);
+      expect(resolved.env[SHIPPED_SCOPE_KEY]).toBe(SHIPPED_SCOPE);
+      // NOTE: provider neutrality is asserted against the shipped FILE in
+      // t03-settings-json, not here. `env` merges processEnv() underneath the
+      // shipped layer, so a developer shell that exports CLAUDE_CODE_USE_BEDROCK
+      // shows up in this merged result and says nothing about what ships.
     });
   });
 
@@ -48,7 +57,7 @@ describe("sdk-drive model resolution", () => {
       writeProjectSettings(projectDir, {
         model: "sonnet",
         env: {
-          ANTHROPIC_DEFAULT_OPUS_MODEL: "project-opus-should-not-win",
+          [SHIPPED_SCOPE_KEY]: "project-scope-should-not-win",
         },
       });
 
@@ -56,7 +65,7 @@ describe("sdk-drive model resolution", () => {
 
       expect(resolved.model).toBe("sonnet");
       expect(resolved.modelSource).toBe(join(projectDir, ".claude", "settings.json"));
-      expect(resolved.env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe(SHIPPED_OPUS);
+      expect(resolved.env[SHIPPED_SCOPE_KEY]).toBe(SHIPPED_SCOPE);
     });
   });
 
@@ -65,13 +74,13 @@ describe("sdk-drive model resolution", () => {
       const resolved = resolveDriveSdkSettings(projectDir, {
         model: "sonnet",
         env: {
-          ANTHROPIC_DEFAULT_OPUS_MODEL: "explicit-opus",
+          [SHIPPED_SCOPE_KEY]: "explicit-scope",
         },
       });
 
       expect(resolved.model).toBe("sonnet");
       expect(resolved.modelSource).toBe("option");
-      expect(resolved.env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("explicit-opus");
+      expect(resolved.env[SHIPPED_SCOPE_KEY]).toBe("explicit-scope");
     });
   });
 });
