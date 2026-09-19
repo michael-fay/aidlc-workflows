@@ -16,7 +16,7 @@ import { join } from "node:path";
 
 const REPO_ROOT = join(import.meta.dir, "..", "..");
 const SCRIPT = join(REPO_ROOT, "scripts", "docs-rewrite-links.ts");
-const BLOB_URL = "https://github.com/awslabs/aidlc-workflows/blob/main";
+const BLOB_URL = "https://github.com/michael-fay/aidlc-workflows/blob/main";
 
 const scratch: string[] = [];
 afterEach(() => {

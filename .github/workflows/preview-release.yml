@@ -328,8 +328,8 @@ jobs:
             -Value 'aidlc-lifecycle-provenance-fixture'
           $ghFixture = Join-Path $env:RUNNER_TEMP 'aidlc-gh.ps1'
           $env:AIDLC_TEST_GH_MARKER = Join-Path $env:RUNNER_TEMP 'aidlc-gh-verified'
-          $env:AIDLC_TEST_GH_REPOSITORY = 'awslabs/aidlc-workflows'
-          $env:AIDLC_TEST_GH_WORKFLOW = 'awslabs/aidlc-workflows/.github/workflows/preview-release.yml'
+          $env:AIDLC_TEST_GH_REPOSITORY = 'michael-fay/aidlc-workflows'
+          $env:AIDLC_TEST_GH_WORKFLOW = 'michael-fay/aidlc-workflows/.github/workflows/preview-release.yml'
           $manifest = Get-Content -Raw -LiteralPath (Join-Path $releaseRoot 'version.json') |
             ConvertFrom-Json
           $env:AIDLC_TEST_GH_SOURCE_REF = $manifest.sourceRef
@@ -554,8 +554,8 @@ jobs:
             AIDLC_BIN_DIR="$AIDLC_BIN_DIR" \
             AIDLC_GH_BIN="$gh_bin" \
             AIDLC_TEST_GH_MARKER="$gh_marker" \
-            AIDLC_TEST_GH_REPOSITORY="awslabs/aidlc-workflows" \
-            AIDLC_TEST_GH_WORKFLOW="awslabs/aidlc-workflows/.github/workflows/preview-release.yml" \
+            AIDLC_TEST_GH_REPOSITORY="michael-fay/aidlc-workflows" \
+            AIDLC_TEST_GH_WORKFLOW="michael-fay/aidlc-workflows/.github/workflows/preview-release.yml" \
             AIDLC_TEST_GH_SOURCE_REF="$manifest_source_ref" \
             AIDLC_TEST_GH_SOURCE_DIGEST="$(
               sed -n 's/.*"sourceDigest":[[:space:]]*"\([a-f0-9]*\)".*/\1/p' \

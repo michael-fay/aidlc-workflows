@@ -36,7 +36,7 @@ param(
   } elseif ($env:AIDLC_RELEASE_REPOSITORY) {
     "https://github.com/$($env:AIDLC_RELEASE_REPOSITORY)/releases"
   } else {
-    'https://github.com/awslabs/aidlc-workflows/releases'
+    'https://github.com/michael-fay/aidlc-workflows/releases'
   }),
 
   [Parameter()]
@@ -67,7 +67,7 @@ if (-not $PSBoundParameters.ContainsKey('Version') -and -not $From) {
 $releaseRepository = if ($env:AIDLC_RELEASE_REPOSITORY) {
   $env:AIDLC_RELEASE_REPOSITORY
 } else {
-  'awslabs/aidlc-workflows'
+  'michael-fay/aidlc-workflows'
 }
 $releaseWorkflow = $env:AIDLC_RELEASE_WORKFLOW
 

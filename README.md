@@ -17,13 +17,13 @@ The Quick Start below installs the latest stable AI-DLC release.
 macOS, Linux, or WSL:
 
 ```bash
-curl -fsSL https://github.com/awslabs/aidlc-workflows/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/michael-fay/aidlc-workflows/releases/latest/download/install.sh | sh
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://github.com/awslabs/aidlc-workflows/releases/latest/download/install.ps1 | iex
+irm https://github.com/michael-fay/aidlc-workflows/releases/latest/download/install.ps1 | iex
 ```
 
 The installer adds the native `aidlc` command and every harness runtime. Bun
@@ -33,7 +33,7 @@ instruction printed by the installer or start a new shell.
 Cannot install a native executable, or prefer to manage the project files
 manually? Install [Bun](https://bun.sh/), download
 `aidlc-copy-runtime-X.Y.Z.tar.gz` from the
-[release](https://github.com/awslabs/aidlc-workflows/releases/latest), and copy
+[release](https://github.com/michael-fay/aidlc-workflows/releases/latest), and copy
 the complete `runtime/<harness>/` directory into your project. This path does
 not require the native `aidlc` command.
 
