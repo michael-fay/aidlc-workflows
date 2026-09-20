@@ -21194,6 +21194,23 @@ export function isTeamUnitOwnership(stateContent: string | null): boolean {
   return !!stateContent && getField(stateContent, UNIT_OWNERSHIP_FIELD)?.trim() === "team";
 }
 
+// Where this intent's approval gates are answered. ABSENT means "in-session",
+// so every record written before this field existed reads as the interactive
+// behaviour it already had — the field is additive, never a migration.
+export type ApprovalRouting = "in-session" | "external";
+export const APPROVAL_ROUTING_FIELD = "Approval Routing";
+
+export function readApprovalRouting(stateContent: string | null): ApprovalRouting {
+  const value = stateContent
+    ? getField(stateContent, APPROVAL_ROUTING_FIELD)?.trim()
+    : undefined;
+  return value === "external" ? "external" : "in-session";
+}
+
+export function isExternalApprovalRouting(stateContent: string | null): boolean {
+  return readApprovalRouting(stateContent) === "external";
+}
+
 export function readUnitGateRhythm(stateContent: string | null): UnitGateRhythm {
   if (!isTeamUnitOwnership(stateContent)) return "per-stage";
   return getField(stateContent!, UNIT_GATE_RHYTHM_FIELD)?.trim() === "unit-end"

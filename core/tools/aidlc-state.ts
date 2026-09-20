@@ -734,6 +734,7 @@ export function main(argv: string[]): void {
       "set-skeleton-stance",
       "set-construction-iteration",
       "set-unit-ownership",
+      "set-approval-routing",
       "set-unit-gate-rhythm",
       "refresh-unit-progress",
       "sync-unit-scope-stage",
@@ -775,6 +776,9 @@ export function main(argv: string[]): void {
         break;
       case "set-unit-ownership":
         handleSetUnitOwnership(args.slice(1));
+        break;
+      case "set-approval-routing":
+        handleSetApprovalRouting(args.slice(1));
         break;
       case "set-unit-gate-rhythm":
         handleSetUnitGateRhythm(args.slice(1));
@@ -853,7 +857,7 @@ export function main(argv: string[]): void {
         break;
       default:
         error(
-          `Unknown subcommand: ${subcommand}. Valid: get, set, set-skeleton-stance, set-construction-iteration, set-unit-ownership, set-unit-gate-rhythm, refresh-unit-progress, sync-unit-scope-stage, fold-unit-merge, checkbox, count, advance, finalize, complete-workflow, gate-start, approve, reject, revise, skip, resume, acknowledge-compaction, reuse-artifact, lookup, practices-event, practices-promote, fork, merge, unit, park, unpark`
+          `Unknown subcommand: ${subcommand}. Valid: get, set, set-skeleton-stance, set-construction-iteration, set-unit-ownership, set-approval-routing, set-unit-gate-rhythm, refresh-unit-progress, sync-unit-scope-stage, fold-unit-merge, checkbox, count, advance, finalize, complete-workflow, gate-start, approve, reject, revise, skip, resume, acknowledge-compaction, reuse-artifact, lookup, practices-event, practices-promote, fork, merge, unit, park, unpark`
         );
     }
   } catch (e) {
@@ -1179,6 +1183,50 @@ function handleSetUnitOwnership(args: string[]): void {
     emitAudit(pd, "UNIT_OWNERSHIP_SET", { Mode: value });
     writeStateFile(pd, content);
     console.log(JSON.stringify({ updated: true, unit_ownership: value }));
+  });
+}
+
+// set-approval-routing <in-session|external>
+// Where this intent's approval gates are ANSWERED. `in-session` (the default,
+// recorded as an absent field so existing records are byte-identical) means the
+// human answers at the terminal and the stage protocol reports the approval
+// immediately. `external` means the gate is handed to a tracker: the conductor
+// records the handoff, parks the workflow, and the approval arrives later as an
+// attested relay (see resolveExternalApproval).
+//
+// Per-INTENT rather than per-scope on purpose: a team runs some work
+// interactively and some through the tracker with the same scope, and the
+// routing has to survive a resume, so it belongs in the record rather than in
+// an environment variable or a scope file.
+function handleSetApprovalRouting(args: string[]): void {
+  const values = ["in-session", "external"];
+  if (args.length < 1) {
+    error(`Usage: aidlc-state.ts set-approval-routing <${values.join("|")}>`);
+  }
+  const value = args[0];
+  if (!values.includes(value)) {
+    error(`Invalid approval routing "${value}". Valid: ${values.join(", ")}.`);
+  }
+  const pd = resolveProjectDir(projectDir);
+  withAuditLock(pd, () => {
+    let content = readStateFile(pd);
+    if (isAutonomousMode(content)) {
+      // Autonomous Construction has no human at the gate at all, so routing one
+      // to a tracker would describe a handoff that never happens.
+      error(
+        "Cannot set approval routing while Construction Autonomy Mode is autonomous: " +
+          "an unattended run has no gate to hand off. Switch to gated Construction first.",
+      );
+    }
+    content = setOrInsertField(
+      content,
+      "## Runtime State",
+      "Approval Routing",
+      value,
+    );
+    emitAudit(pd, "APPROVAL_ROUTING_SET", { Mode: value });
+    writeStateFile(pd, content);
+    console.log(JSON.stringify({ updated: true, approval_routing: value }));
   });
 }
 

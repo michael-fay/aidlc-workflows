@@ -171,6 +171,7 @@ const VALID_EVENT_TYPES = new Set([
   "BOLT_COMPLETED",
   "BOLT_FAILED",
   "AUTONOMY_MODE_SET",
+  "APPROVAL_ROUTING_SET",
   "UNIT_OWNERSHIP_SET",
   "UNIT_GATE_RHYTHM_SET",
   "UNIT_MERGED",
@@ -291,6 +292,7 @@ const EVENT_HEADINGS: Record<string, string> = {
   BOLT_COMPLETED: "Bolt Completed",
   BOLT_FAILED: "Bolt Failed",
   AUTONOMY_MODE_SET: "Autonomy Mode Set",
+  APPROVAL_ROUTING_SET: "Approval Routing Set",
   UNIT_OWNERSHIP_SET: "Unit Ownership Set",
   UNIT_GATE_RHYTHM_SET: "Unit Gate Rhythm Set",
   UNIT_MERGED: "Unit Merged",
@@ -412,6 +414,7 @@ export const CLI_PROTECTED_EVENT_TYPES = new Set([
   "SWARM_UNIT_CONVERGED",
   "SWARM_SOURCE_MERGED",
   "AUTONOMY_MODE_SET",
+  "APPROVAL_ROUTING_SET",
   "UNIT_OWNERSHIP_SET",
   "UNIT_GATE_RHYTHM_SET",
   // Unit lifecycle receipts: routing trusts UNIT_COMPLETED as the completion
@@ -472,6 +475,7 @@ const MERGE_PROTECTED_EVENT_TYPES = new Set([
   "PLAN_APPROVAL_RECORDED",
   "PLAN_APPROVAL_OVERRIDDEN",
   "AUTONOMY_MODE_SET",
+  "APPROVAL_ROUTING_SET",
   "UNIT_OWNERSHIP_SET",
   "UNIT_GATE_RHYTHM_SET",
   // Routing-trusted unit lifecycle receipts.

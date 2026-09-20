@@ -209,6 +209,11 @@ export interface RunStageDirective {
   sensors_applicable: string[];
   // Engine-resolved ceremony switches apply equally to inline and dispatched work.
   ceremony: CeremonyPolicy;
+  // Where this intent's approval gates are answered. EMITTED ONLY when the
+  // intent records "external", so an ordinary interactive run produces a
+  // byte-identical directive to one built before the field existed. Absent
+  // therefore means in-session, matching readApprovalRouting's default.
+  approval_routing?: "external";
   stage_file: string;
   // Kiro IDE 0.12 has no chat/session id. The engine emits this one-time
   // capability only to the `next`/`continue` caller that owns legacy planning;
@@ -588,6 +593,7 @@ const RUN_STAGE_FIELDS = [
   "rules_in_context",
   "sensors_applicable",
   "ceremony",
+  "approval_routing",
   "stage_file",
   "reviewer",
   "review_artifact",

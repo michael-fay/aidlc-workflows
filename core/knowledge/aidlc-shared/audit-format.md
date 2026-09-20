@@ -166,6 +166,7 @@ their work can precede their own `STAGE_STARTED`.
 
 | Event | When | Required Fields | Emitter |
 |-------|------|-----------------|---------|
+| `APPROVAL_ROUTING_SET` | Where this intent's approval gates are answered (in-session, or handed to a tracker) | Timestamp, Mode | `tools/aidlc-state.ts set-approval-routing` |
 | `UNIT_OWNERSHIP_SET` | Unit-major ownership mode is set before unit activity starts | Timestamp, Mode | `tools/aidlc-state.ts set-unit-ownership` |
 | `UNIT_GATE_RHYTHM_SET` | Team-owned gate rhythm is set before unit activity starts | Timestamp, Rhythm | `tools/aidlc-state.ts set-unit-gate-rhythm` |
 | `UNIT_STARTED` | A unit's work begins on an inline per-unit stage; refused while another unit of the stage is open | Timestamp, Stage, Unit, Run floor; optional Attempt Generation | `tools/aidlc-state.ts unit start` |

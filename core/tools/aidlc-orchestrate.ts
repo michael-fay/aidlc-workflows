@@ -161,6 +161,7 @@ import {
   isArchivedIntent,
   isRouteCheckProbe,
   isStopHookProbe,
+  isExternalApprovalRouting,
   isTeamUnitOwnership,
   KNOWN_CODEKB_STAGES,
   listIntents,
@@ -3413,6 +3414,11 @@ function buildRunStageDirective(
       ruleEntries?.map((entry) => entry.rel) ??
       (node.rules_in_context ?? []).map((r) => r.path),
     ceremony,
+    // Additive: present only for an intent that routes approvals to a tracker,
+    // so an in-session run's directive is unchanged from before this existed.
+    ...(isExternalApprovalRouting(stateContent)
+      ? { approval_routing: "external" as const }
+      : {}),
     sensors_applicable: ceremony.sensors === "off"
       ? []
       : (node.sensors_applicable ?? []).map((s) => s.id),
