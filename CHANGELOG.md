@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2026.9.20] - 2026-09-20
+
+First release of this fork, cut from upstream 2.9.0. It carries four changes that make the engine usable as the planning half of a tracker-driven loop: approvals can be answered outside the session, gates can be parked pending that answer, the install and update channel points at this fork, and nothing assumes Amazon Bedrock. **Upgrade:** run this fork's `install.sh` from its latest release, then run `aidlc config --yes` in each project to refresh its harness runtime. Versioning is CalVer (`YYYY.M.D`, unpadded - the launcher rejects leading zeros), which keeps this fork unambiguous against upstream's semver.
+
+* The shipped Claude Code `settings.json` carries no model-provider environment, so a project inherits whatever model access the harness already has. Bedrock is now opt-in: answering `amazon-bedrock` at `aidlc config` writes `CLAUDE_CODE_USE_BEDROCK`, your region and profile, and the four model-id pins. Previously those shipped enabled and no answer could turn them off, because provider application returned early for every non-Bedrock choice. Breaking for anyone relying on the old default: re-run `aidlc config` and choose Bedrock to restore it.
+* `aidlc config providers --reset` now clears Bedrock outright instead of reverting to a shipped `us-east-1`.
+* `install.sh`, `install.ps1`, and `aidlc update` default to this fork's releases. Release provenance is attested to `michael-fay/aidlc-workflows`.
+* New: an approval made outside the session can be relayed with `--approval-source`, `--approval-actor`, `--approval-ref`, and `--approval-key`, passed to `aidlc engine orchestrate report --result approved`. All four are required together and a partial attestation is refused. The relay is accepted only from an environment holding `AIDLC_EXTERNAL_APPROVAL_KEY`, so an interactive session cannot mint an approval; the human-presence guard is unchanged there. Source, actor, and reference are recorded on `GATE_APPROVED`.
+* New: `aidlc engine state set-approval-routing <in-session|external>` records, per intent, where its gates are answered. Under `external` the stage protocol records the handoff and parks with the gate still open, instead of reporting the approval. An absent field reads as `in-session`, so existing records are unaffected. Refused while Construction autonomy is `autonomous`.
+* The framework audit taxonomy grows to 100 events with `APPROVAL_ROUTING_SET`.
+
 ## [2.9.0] - 2026-09-15
 
 AI-DLC 2.9.0 rolls up the user-visible changes merged since 2.8.2, including the Classic scope v1 ceremony model, commit provenance, intent archiving, on-demand Construction autonomy, review-loop corrections, and the native preview release channel. **Upgrade:** run `aidlc update`, then run `aidlc config --yes` in each project to refresh its harness runtime. Manual-copy users must replace the complete `runtime/<harness>/` tree from `aidlc-copy-runtime-2.9.0.tar.gz`. Existing in-flight Classic intents keep their recorded stage graph; the new ceremony defaults apply immediately where noted below.

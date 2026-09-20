@@ -22,8 +22,12 @@
 // asserts a way the seam REFUSES, because a seam that only proves its happy
 // path would not be evidence of anything.
 //
-// Mechanism: none. Pure function over an argv array plus one environment
-// variable. No process boundary, no temp project, no LLM, zero tokens.
+// Mechanism: cli. The first block is a pure function over an argv array plus
+// one environment variable; the block at the end spawns the shipped
+// aidlc-state.ts to prove the seam is reached by the real tool. No LLM, zero
+// tokens. (This header said `none` until the spawning block was appended to
+// the same file — gen-coverage-registry derives mechanism from the drivers a
+// body actually calls, and caught the contradiction.)
 
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";

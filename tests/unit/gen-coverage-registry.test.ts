@@ -799,6 +799,11 @@ describe("mechanismsOf is body-derived (milestone 3)", () => {
   const EXPECTED_NONE_TO_CLI = [
     "unit/t341-orchestrate-wait.test.ts",
     "unit/t343-intent-create-positionals.test.ts",
+    // Both spawn the shipped aidlc-state.ts: t345 to prove the attestation
+    // refusals surface through the real tool, t346 to drive
+    // set-approval-routing end to end.
+    "unit/t345-external-approval-attestation.test.ts",
+    "unit/t346-approval-routing.test.ts",
     "integration/t-review-verdict-unit-state.test.ts",
     "unit/t-runner-production-guards.test.ts",
     "integration/t-guard-native-remedies.test.ts",
