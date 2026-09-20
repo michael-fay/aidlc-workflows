@@ -137,3 +137,32 @@ describe("the autonomous-Construction interlock", () => {
     expect(stateText(p)).not.toContain("**Approval Routing**: external");
   }, 30000);
 });
+
+// --- The dispatcher layer, which the tests above do NOT cover ----------------
+//
+// Everything above spawns aidlc-state.ts DIRECTLY. The native `aidlc` command
+// does not: `aidlc engine state <verb>` routes through aidlc.ts, which carries
+// its own per-noun verb allowlist. A verb can therefore be fully implemented,
+// fully tested, and still be unreachable for every real user.
+//
+// That is not hypothetical — it shipped. v2026.9.20 published with
+// set-approval-routing implemented and working via the tool, and the installed
+// binary answering `unknown verb 'set-approval-routing'`. This test is the
+// guard that was missing.
+
+describe("reachable through the aidlc.ts dispatcher, not just the tool", () => {
+  const DISPATCHER = join(import.meta.dir, "..", "..", "core", "tools", "aidlc.ts");
+
+  test("`engine state set-approval-routing` is a recognised verb", () => {
+    const res = spawnSync(
+      process.execPath,
+      [DISPATCHER, "engine", "state", "set-approval-routing", "--project-dir", proj()],
+      { encoding: "utf-8", env: { ...process.env } as Record<string, string> },
+    );
+    const out = `${res.stdout ?? ""}${res.stderr ?? ""}`;
+    // It may refuse for any number of project-state reasons; what it must NEVER
+    // do is fail to recognise the verb.
+    expect(out).not.toContain("unknown verb");
+    expect(out).not.toContain("set-approval-routing' for engine noun");
+  }, 30000);
+});
