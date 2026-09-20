@@ -7509,6 +7509,11 @@ interface ReportFlags {
   stage?: string; // --stage <slug>: the acted stage (required under --single; preferred for main workflow reports)
   overrideBlockingSensors?: boolean;
   unit?: string; // --unit <name>: required for team-owned per-unit gates
+  // Attested external approval: a relay of a human approval made outside this
+  // session (a tracker issue a named person moved to an approved state).
+  // Forwarded verbatim to `aidlc-state.ts approve`, which owns verification —
+  // report never judges an attestation, exactly as it never judges a gate.
+  externalApproval?: string[];
 }
 
 // Extract report's flags. --result is the verdict; --user-input carries the
@@ -7533,6 +7538,19 @@ function parseReportFlags(args: string[]): ReportFlags {
     } else if (a === "--reject-finding" && i + 1 < args.length) {
       flags.rejectFindings ??= [];
       flags.rejectFindings.push(args[i + 1]);
+      i++;
+    } else if (
+      (a === "--approval-source" ||
+        a === "--approval-actor" ||
+        a === "--approval-ref" ||
+        a === "--approval-key") &&
+      i + 1 < args.length
+    ) {
+      // Collected verbatim, never inspected here. A malformed attestation must
+      // produce ONE refusal from the component that verifies it, so report
+      // forwards the pair as given and lets `approve` be the single authority.
+      flags.externalApproval ??= [];
+      flags.externalApproval.push(a, args[i + 1]);
       i++;
     } else if (a === "--skeleton-stance" && i + 1 < args.length) {
       flags.skeletonStance = args[i + 1];
@@ -8273,6 +8291,7 @@ function approveArgs(slug: string, flags: ReportFlags): string[] {
   const args = ["approve", slug];
   if (flags.userInput) args.push("--user-input", flags.userInput);
   if (flags.unit) args.push("--unit", flags.unit);
+  if (flags.externalApproval) args.push(...flags.externalApproval);
   return args;
 }
 

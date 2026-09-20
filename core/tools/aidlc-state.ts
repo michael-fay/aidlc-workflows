@@ -68,6 +68,7 @@ import {
   getField,
   guardRecoveryFeedbackStatus,
   selectedGuardRecoveryRemedyAction,
+  type ExternalApproval,
   type GuardAttemptState,
   type StageEntry,
   type GuardRefusal,
@@ -79,6 +80,7 @@ import {
   holdsAuditLock,
   humanActedSinceGate,
   humanPresenceGuardDisabled,
+  resolveExternalApproval,
   unattendedHumanPresenceHint,
   intentRepos,
   isAutonomousConstructionGate,
@@ -5379,6 +5381,12 @@ function verifyApprovalDecision(
   stage: NonNullable<ReturnType<typeof findStageBySlug>>,
   userInput?: string,
   forceHuman = false,
+  // A verified relay of a human approval made outside this session. When
+  // present it stands in for the HUMAN_TURN the ledger cannot see, because the
+  // person acted in the named system rather than in a terminal. Verification
+  // (all four flags, shape checks, environment key) already happened in
+  // resolveExternalApproval; by here it is either trusted or absent.
+  externalApproval: ExternalApproval | null = null,
 ): { approvalInput: string | undefined; autonomousDecision: boolean } {
   const autonomousDecision =
     !forceHuman && isAutonomousConstructionGate(content, stage);
@@ -5423,6 +5431,7 @@ function verifyApprovalDecision(
   }
   if (
     !autonomousDecision &&
+    !externalApproval &&
     !humanPresenceGuardDisabled() &&
     !humanActedSinceGate(pd)
   ) {
@@ -5436,9 +5445,15 @@ function verifyApprovalDecision(
 }
 
 function handleApprove(args: string[]): void {
-  if (args.length < 1) error("Usage: aidlc-state.ts approve <slug> [--user-input <text>]");
+  if (args.length < 1) {
+    error(
+      "Usage: aidlc-state.ts approve <slug> [--user-input <text>] " +
+        "[--approval-source <token> --approval-actor <identity> " +
+        "--approval-ref <url|id> --approval-key <secret>]",
+    );
+  }
   const slug = args[0];
-  const { userInput } = parseApproveFlags(args.slice(1));
+  const { userInput, externalApproval } = parseApproveFlags(args.slice(1));
 
   const pd = resolveProjectDir(projectDir);
   const preflightContent = readStateFile(pd);
@@ -5458,6 +5473,7 @@ function handleApprove(args: string[]): void {
     preflightStage,
     userInput,
     preflightTeamGate !== null,
+    externalApproval,
   );
   if (preflightTeamGate) {
     admitStageAction(pd, preflightContent, preflightStage, {
@@ -5510,6 +5526,7 @@ function handleApprove(args: string[]): void {
     stage,
     userInput,
     teamGate !== null,
+    externalApproval,
   );
 
   if (teamGate) {
@@ -5702,6 +5719,15 @@ function handleApprove(args: string[]): void {
   try {
     const gateFields: Record<string, string> = { Stage: slug };
     if (approvalInput) gateFields["User Input"] = approvalInput;
+    // Provenance for a relayed approval. A terminal approval records only that
+    // SOMEBODY was present (the HUMAN_TURN); these three fields say who, where,
+    // and where to go verify it — so a reader of the audit can audit the claim
+    // rather than take the relay's word for it.
+    if (externalApproval) {
+      gateFields["Approval Source"] = externalApproval.source;
+      gateFields["Approval Actor"] = externalApproval.actor;
+      gateFields["Approval Ref"] = externalApproval.ref;
+    }
     if (reviewFindingDispositions) {
       gateFields[REVIEW_FINDING_DISPOSITIONS_FIELD] =
         reviewFindingDispositions;
@@ -5778,9 +5804,18 @@ function getFlagValues(args: string[], flag: string): string[] {
 }
 
 // Flag parser for approve — handles --user-input (value).
-function parseApproveFlags(args: string[]): { userInput?: string } {
+function parseApproveFlags(
+  args: string[],
+): { userInput?: string; externalApproval: ExternalApproval | null } {
+  // Refuse a malformed attestation HERE, before any state is read, so a bad
+  // relay never reaches the guard and gets reported as "no human replied" —
+  // which would send the operator looking for a missing human instead of the
+  // missing flag that actually stopped them.
+  const { approval, error: attestationError } = resolveExternalApproval(args);
+  if (attestationError) error(attestationError);
   return {
     userInput: getFlagValue(args, "--user-input"),
+    externalApproval: approval,
   };
 }
 

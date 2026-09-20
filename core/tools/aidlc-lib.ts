@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { accessSync, appendFileSync, chmodSync, closeSync, constants as fsConstants, cpSync, type Dirent, existsSync, fstatSync, linkSync, lstatSync, mkdirSync, openSync, opendirSync, readdirSync, readFileSync, readlinkSync, readSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath, sep, win32 } from "node:path";
@@ -21248,6 +21248,144 @@ export function unattendedHumanPresenceHint(): string {
     : " AIDLC_UNATTENDED=1 is set, so automated prompt submissions cannot count " +
       "as a human reply. Unset AIDLC_UNATTENDED before returning to interactive " +
       "mode, then submit a new human response.";
+}
+
+// --- Attested external approval -------------------------------------------
+//
+// The human-presence gate proves a person acted THIS TURN by requiring a
+// HUMAN_TURN ledger event, which only a harness UserPromptSubmit hook mints.
+// That is exactly right while the gate is answered in a terminal. It is wrong
+// for a workflow whose approvals are answered somewhere else — a tracker issue
+// moved to an approved state by a named person — because the human genuinely
+// acted, just not anywhere the ledger can observe.
+//
+// The bypass that already exists (AIDLC_SKIP_HUMAN_PRESENCE_GUARD) is the wrong
+// instrument for that: it is global, it is documented for synthetic CI against
+// bare fixtures, and it records NOTHING about who approved. Turning it on to
+// relay a real approval deletes the anti-fabrication property for every gate.
+//
+// This seam keeps the property and moves the evidence. An approval relayed from
+// outside must carry three provenance fields and be relayed from an environment
+// holding a shared key:
+//
+//   --approval-source <token>   where the human acted (e.g. "linear")
+//   --approval-actor  <identity>  who acted
+//   --approval-ref    <url|id>    the resolvable record of them acting
+//   --approval-key    <secret>    must equal $AIDLC_EXTERNAL_APPROVAL_KEY
+//
+// The key is what separates the two worlds. An interactive session does not
+// hold it, so a model in one cannot mint an approval no matter what it types —
+// the original guard still governs there. A relay runner holds it, and that
+// environment is precisely where the operator has decided to trust the relay.
+// All four are required together: a partial attestation is refused rather than
+// silently ignored, so a typo can never downgrade into "no attestation offered"
+// and fall back to a guard the caller believed it had satisfied.
+//
+// Every field lands in GATE_APPROVED, so "approved by whom, and where can I go
+// look" is answerable from the audit trail alone. That is strictly more than
+// the terminal path records today, where a HUMAN_TURN proves only that somebody
+// was present.
+export interface ExternalApproval {
+  source: string;
+  actor: string;
+  ref: string;
+}
+
+const EXTERNAL_APPROVAL_FLAGS = [
+  "--approval-source",
+  "--approval-actor",
+  "--approval-ref",
+  "--approval-key",
+] as const;
+
+// A flag's value, or "" when the flag is present but its value is missing or is
+// itself the next flag. "" is a DISTINCT outcome from undefined: it means the
+// caller tried to attest and got the syntax wrong, which must refuse.
+function externalApprovalFlagValue(args: string[], flag: string): string | undefined {
+  const index = args.indexOf(flag);
+  if (index === -1) return undefined;
+  const value = args[index + 1];
+  if (value === undefined || value.startsWith("--")) return "";
+  return value.trim();
+}
+
+export function externalApprovalOffered(args: string[]): boolean {
+  return EXTERNAL_APPROVAL_FLAGS.some((flag) => args.includes(flag));
+}
+
+function secretsMatch(provided: string, expected: string): boolean {
+  // Compare digests so the comparison is constant-time over equal-length
+  // buffers and never leaks the expected secret's length.
+  const a = createHash("sha256").update(provided).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
+export function resolveExternalApproval(
+  args: string[],
+): { approval: ExternalApproval | null; error: string | null } {
+  if (!externalApprovalOffered(args)) return { approval: null, error: null };
+
+  const source = externalApprovalFlagValue(args, "--approval-source") ?? "";
+  const actor = externalApprovalFlagValue(args, "--approval-actor") ?? "";
+  const ref = externalApprovalFlagValue(args, "--approval-ref") ?? "";
+  const key = externalApprovalFlagValue(args, "--approval-key") ?? "";
+
+  const missing = [
+    ["--approval-source", source],
+    ["--approval-actor", actor],
+    ["--approval-ref", ref],
+    ["--approval-key", key],
+  ]
+    .filter(([, value]) => value.length === 0)
+    .map(([flag]) => flag);
+  if (missing.length > 0) {
+    return {
+      approval: null,
+      error:
+        `An external approval must carry every provenance field. Missing or empty: ${missing.join(", ")}. ` +
+        "A partial attestation is refused rather than ignored, so a malformed relay never " +
+        "silently falls back to the human-presence guard.",
+    };
+  }
+
+  if (/[\r\n]/.test(`${source}${actor}${ref}`)) {
+    return {
+      approval: null,
+      error:
+        "An external approval field contains a line break. These values are written to " +
+        "single-line audit fields; supply them without newlines.",
+    };
+  }
+  if (!/^[a-z][a-z0-9-]*$/.test(source)) {
+    return {
+      approval: null,
+      error:
+        `Invalid --approval-source "${source}": name the system the human acted in as a ` +
+        'lowercase token (for example "linear").',
+    };
+  }
+
+  const expected = (process.env.AIDLC_EXTERNAL_APPROVAL_KEY ?? "").trim();
+  if (expected.length === 0) {
+    return {
+      approval: null,
+      error:
+        "An external approval was offered but AIDLC_EXTERNAL_APPROVAL_KEY is not set in this " +
+        "environment. Only a relay environment holding that key may record an approval a " +
+        "person made elsewhere; an interactive session answers its own gate instead.",
+    };
+  }
+  if (!secretsMatch(key, expected)) {
+    return {
+      approval: null,
+      error:
+        "The --approval-key does not match AIDLC_EXTERNAL_APPROVAL_KEY for this environment, " +
+        "so this approval cannot be attributed to a trusted relay.",
+    };
+  }
+
+  return { approval: { source, actor, ref }, error: null };
 }
 
 export function setField(content: string, field: string, value: string): string {

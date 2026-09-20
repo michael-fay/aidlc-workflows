@@ -86,6 +86,50 @@ authority-bearing `HUMAN_TURN`, so approval and interview gates continue to
 wait. When a person takes over, unset `AIDLC_UNATTENDED` and submit a fresh
 response. Presence-related refusal messages name the flag when it is still set.
 
+### Approving from outside the session
+
+Some teams answer the gate somewhere other than a terminal — a tracker issue a
+named person moves into an approved state, with an agent relaying the outcome
+back. The human really did decide; the ledger simply cannot observe it, so the
+presence gate above would refuse.
+
+`AIDLC_SKIP_HUMAN_PRESENCE_GUARD=1` is **not** the way to do this. It is global,
+it is meant for synthetic CI runs against bare fixtures, and it records nothing
+about who approved — using it to relay a real decision removes the
+anti-fabrication property from every gate in the workflow.
+
+Instead, attest the approval. Four flags on `report --result approved` (or
+`aidlc-state.ts approve` directly), all required together:
+
+| Flag | Meaning |
+| --- | --- |
+| `--approval-source` | the system the human acted in, as a lowercase token (e.g. `linear`) |
+| `--approval-actor` | who acted |
+| `--approval-ref` | the resolvable record of them acting (URL or id) |
+| `--approval-key` | must equal `AIDLC_EXTERNAL_APPROVAL_KEY` in this environment |
+
+```bash
+aidlc engine orchestrate report --stage requirements-analysis --result approved \
+  --user-input "Approve" \
+  --approval-source linear --approval-actor "mike@example.com" \
+  --approval-ref "https://linear.app/acme/issue/ENG-42" \
+  --approval-key "$AIDLC_EXTERNAL_APPROVAL_KEY"
+```
+
+The environment key is what makes this safe rather than a bypass. An
+interactive session does not hold it, so a model in one cannot mint an approval
+no matter what it passes — the presence gate still governs there. A relay
+runner holds it, and that environment is where you have decided to trust the
+relay. A partial or misspelled attestation is **refused**, never ignored, so a
+typo cannot quietly fall back to a guard the caller believed it had satisfied.
+
+`source`, `actor`, and `ref` are written into `GATE_APPROVED`, so the audit
+trail answers "approved by whom, and where do I go check" — strictly more than
+a terminal approval records, where `HUMAN_TURN` proves only that somebody was
+present. This composes with `AIDLC_UNATTENDED=1`: a relay runner should set
+both, withholding the `HUMAN_TURN` it has no right to mint while carrying the
+authority it can evidence.
+
 ### Approval Gate Flow
 
 ```mermaid
